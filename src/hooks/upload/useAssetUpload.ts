@@ -1,0 +1,439 @@
+import { appToast } from "@/utils/toast";
+import { prepareImageForUpload } from "@/utils/media/prepareImageForUpload";
+import { prepareGifForUpload } from "@/utils/media/prepareGifForUpload";
+import { VIDEO_UPLOAD_PREPROCESSING_ENABLED } from "@/utils/media/video-upload.constants";
+import {
+  createVideoUploadDebugSession,
+  type VideoUploadDebugSession,
+} from "@/utils/media/video-upload.debug";
+import { useState } from "react";
+import {
+  beginAssetUploadTask,
+  completeAssetUploadTask,
+  failAssetUploadTask,
+  updateAssetUploadTask,
+  type AssetUploadKind,
+  type AssetUploadPhase,
+} from "@/stores/asset-upload-progress.store";
+
+const folderName = import.meta.env.VITE_DO_PROJECT_FOLDER;
+
+if (!folderName) {
+  console.error("No folder name specified in env (VITE_DO_PROJECT_FOLDER)!");
+}
+
+type PresignedPostResponse = {
+  signedUrl: string;
+  fields: Record<string, string>;
+  fileName?: string;
+  publicUrl?: string; // ✅ backend might return this
+};
+
+type UploadAssetInput =
+  | File
+  | ((ctx: { onProgress: (progress: number) => void }) => Promise<File>);
+
+type UploadAssetProgressOptions = {
+  kind: AssetUploadKind;
+  sourceFile?: File;
+  operationLabel?: string;
+  preparePhase?: AssetUploadPhase;
+  debugSession?: VideoUploadDebugSession;
+};
+
+async function fetchPresignedPostData(
+  fileName: string,
+  fileType: string,
+  shouldSameUrl: boolean = false
+): Promise<PresignedPostResponse> {
+  if (!folderName) {
+    appToast.error("No folder name specified in env (VITE_DO_PROJECT_FOLDER)!");
+    throw new Error("Missing VITE_DO_PROJECT_FOLDER. Aborting upload.");
+  }
+
+  const res = await fetch(
+    `${import.meta.env.VITE_BACKEND_URL}/utils/signed-url`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        file: { fileName, fileType },
+        folderName,
+        shouldSameUrl,
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(
+      `Failed to fetch presigned POST data: ${txt || res.status}`
+    );
+  }
+
+  return (await res.json()) as PresignedPostResponse;
+}
+
+/** Upload the file to Spaces using the presigned POST data */
+async function uploadFileUsingPost(
+  signedUrl: string,
+  fields: Record<string, string>,
+  file: File,
+  onProgress?: (progress: { loaded: number; total?: number }) => void
+): Promise<string> {
+  const formData = new FormData();
+
+  Object.entries(fields).forEach(([k, v]) => formData.append(k, v));
+  formData.append("file", file);
+
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", signedUrl);
+
+    xhr.upload.onprogress = (event) => {
+      onProgress?.({
+        loaded: event.loaded,
+        total: event.lengthComputable ? event.total : undefined,
+      });
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+        return;
+      }
+
+      reject(new Error(`File upload failed: ${xhr.responseText || xhr.status}`));
+    };
+
+    xhr.onerror = () => reject(new Error("File upload failed."));
+    xhr.onabort = () => reject(new Error("File upload was aborted."));
+    xhr.send(formData);
+  });
+
+  // ✅ Correct final URL build (DON’T encode full key, it breaks slashes)
+  const base = signedUrl.replace(/\/+$/, "");
+  const key = String(fields.key || "").replace(/^\/+/, "");
+  const finalUrl = `${base}/${key}`;
+
+  return finalUrl;
+}
+
+export function extractKey(url: string): string {
+  const parts = url.split(".com/");
+  if (parts.length < 2) throw new Error("Cannot extract key from URL");
+  return decodeURIComponent(parts[1].split("?")[0]).replace(/^\/+/, "");
+}
+
+function useAssetUpload() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function uploadAsset(
+    fileInput: UploadAssetInput,
+    assetConfig: object,
+    progressOptions?: UploadAssetProgressOptions,
+  ) {
+    setLoading(true);
+    setError(null);
+    const debugSession = progressOptions?.debugSession;
+    const sourceFile =
+      progressOptions?.sourceFile ??
+      (fileInput instanceof File ? fileInput : undefined);
+    const taskId = sourceFile
+      ? beginAssetUploadTask({
+          file: sourceFile,
+          kind: progressOptions?.kind,
+          operationLabel: progressOptions?.operationLabel,
+          phase:
+            fileInput instanceof File
+              ? "presigning"
+              : progressOptions?.preparePhase ?? "preparing",
+        })
+      : null;
+    let activeTaskId = taskId;
+    let lastDebugStep = "start";
+
+    try {
+      if (typeof fileInput === "function") {
+        lastDebugStep = progressOptions?.preparePhase ?? "preparing";
+        debugSession?.log("task:phase", { phase: lastDebugStep });
+      }
+
+      const file =
+        typeof fileInput === "function"
+          ? await fileInput({
+              onProgress: (progress) => {
+                if (!taskId) return;
+                updateAssetUploadTask(taskId, {
+                  phase: progressOptions?.preparePhase ?? "preparing",
+                  phaseProgress: progress,
+                });
+              },
+            })
+          : fileInput;
+
+      debugSession?.clearStall();
+      debugSession?.log(
+        typeof fileInput === "function" ? "prepare:complete" : "prepare:skipped",
+        {
+          preparedFileName: file.name,
+          preparedFileType: file.type,
+          preparedBytes: file.size,
+        },
+      );
+
+      activeTaskId =
+        activeTaskId ??
+        beginAssetUploadTask({
+          file,
+          kind: progressOptions?.kind,
+          operationLabel: progressOptions?.operationLabel,
+          phase: "presigning",
+        });
+
+      lastDebugStep = "presigning";
+      updateAssetUploadTask(activeTaskId, {
+        fileName: file.name,
+        preparedBytes: file.size,
+        phase: "presigning",
+        phaseProgress: 0,
+      });
+      debugSession?.log("task:phase", { phase: "presigning" });
+      debugSession?.log("presign:start", {
+        fileName: file.name,
+        fileType: file.type,
+      });
+      debugSession?.armStall("presign", 0, 10_000);
+
+      const { signedUrl, fields, publicUrl } = await fetchPresignedPostData(
+        file.name,
+        file.type
+      );
+      debugSession?.clearStall();
+      debugSession?.log("presign:success", {
+        signedUrl,
+        key: fields.key,
+        publicUrl,
+      });
+
+      lastDebugStep = "uploading";
+      updateAssetUploadTask(activeTaskId, {
+        phase: "uploading",
+        phaseProgress: 0,
+        uploadedBytes: 0,
+        uploadTotalBytes: undefined,
+      });
+      debugSession?.log("task:phase", { phase: "uploading" });
+      debugSession?.log("upload:start", {
+        targetKey: fields.key,
+      });
+      debugSession?.armStall("uploading", 0, 15_000);
+
+      const finalFileUrl = await uploadFileUsingPost(
+        signedUrl,
+        fields,
+        file,
+        ({ loaded, total }) => {
+          const percent = total ? (loaded / total) * 100 : 0;
+          updateAssetUploadTask(activeTaskId, {
+            phase: "uploading",
+            uploadedBytes: loaded,
+            uploadTotalBytes: total,
+            phaseProgress: total ? percent : 95,
+          });
+          debugSession?.armStall("uploading", percent, 15_000);
+          debugSession?.logProgress("upload:progress", percent, {
+            loadedBytes: loaded,
+            totalBytes: total,
+          });
+        },
+      );
+      debugSession?.clearStall();
+      debugSession?.log("upload:success", {
+        finalFileUrl,
+      });
+
+      lastDebugStep = "publishing";
+      updateAssetUploadTask(activeTaskId, {
+        phase: "publishing",
+        phaseProgress: 30,
+      });
+      debugSession?.log("task:phase", { phase: "publishing" });
+      debugSession?.log("publish:start", {
+        assetConfig,
+      });
+      debugSession?.armStall("publishing", 0, 10_000);
+
+      await fetch(`${import.meta.env.VITE_BACKEND_URL}/utils/make-public`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          file: { fileName: extractKey(finalFileUrl) },
+          assetConfig,
+        }),
+      });
+      debugSession?.clearStall();
+      debugSession?.log("publish:success", {
+        finalFileUrl,
+      });
+
+      completeAssetUploadTask(activeTaskId, {
+        uploadedBytes: file.size,
+        uploadTotalBytes: file.size,
+        preparedBytes: file.size,
+      });
+      debugSession?.log("upload:complete", {
+        finalUrl: publicUrl ?? finalFileUrl,
+      });
+
+      // ✅ IMPORTANT: return something real
+      return publicUrl ?? finalFileUrl;
+    } catch (err: any) {
+      debugSession?.clearStall();
+      debugSession?.log("upload:failed", {
+        step: lastDebugStep,
+        error: err?.message || "Upload failed",
+      });
+      if (activeTaskId) failAssetUploadTask(activeTaskId, err);
+      setError(err?.message || "Upload failed");
+      throw err;
+    } finally {
+      debugSession?.dispose();
+      setLoading(false);
+    }
+  }
+
+  return { loading, error, uploadAsset };
+}
+
+/** Accepts image/* including image/gif; video uploads are normalized separately. */
+export function useImageUpload() {
+  const { loading, error, uploadAsset } = useAssetUpload();
+  async function uploadImage(
+    file: File,
+    cropParams?: { x: number; y: number; width: number; height: number },
+    compress: boolean = true
+  ) {
+    if (file.type === "image/gif") {
+      return await uploadAsset(
+        ({ onProgress }) => prepareGifForUpload(file, { onProgress }),
+        {
+          imageProps: { cropParams, compress },
+        },
+        {
+          kind: "gif",
+          sourceFile: file,
+          operationLabel: "Compressing Media",
+          preparePhase: "compressing",
+        },
+      );
+    }
+
+    return await uploadAsset(
+      async ({ onProgress }) => {
+        const prepared = await prepareImageForUpload(file, {
+          compress,
+          onProgress,
+        });
+
+        if (prepared.usedOriginalFallback) {
+          appToast.info("Image optimization fell back to the original file before upload.");
+        }
+
+        return prepared.file;
+      },
+      {
+        imageProps: { cropParams, compress },
+      },
+      {
+        kind: "image",
+        sourceFile: file,
+        operationLabel: "Compressing Media",
+        preparePhase: "converting",
+      },
+    );
+  }
+  return { loading, error, uploadImage };
+}
+
+export function useVideoUpload() {
+  const { loading, error, uploadAsset } = useAssetUpload();
+  async function uploadVideo(
+    file: File,
+    trimParams?: { start: number; end: number },
+    cropParams?: { x: number; y: number; width: number; height: number },
+    compression: boolean = true
+  ) {
+    const shouldPreprocess =
+      VIDEO_UPLOAD_PREPROCESSING_ENABLED && compression !== false;
+    const debugSession = createVideoUploadDebugSession(file);
+    debugSession.log("upload:init", {
+      shouldPreprocess,
+      compression,
+      fileType: file.type,
+    });
+
+    return await uploadAsset(
+      shouldPreprocess
+        ? async ({ onProgress }) => {
+            debugSession.log("prepare-module:load:start");
+            const { prepareVideoForUpload } = await import(
+              "@/utils/media/prepareVideoForUpload"
+            )
+              .then((module) => {
+                debugSession.log("prepare-module:load:success");
+                return module;
+              })
+              .catch((error) => {
+                debugSession.log("prepare-module:load:fail", {
+                  error: error instanceof Error ? error.message : "Unknown error",
+                });
+                throw error;
+              });
+
+            const result = await prepareVideoForUpload(file, {
+              onProgress,
+              debugSession,
+            });
+            if (!result.wasOptimized) {
+              debugSession.log("prepare:kept-original-file", {
+                outputFileName: result.file.name,
+                outputFileType: result.file.type,
+                outputBytes: result.file.size,
+              });
+            }
+            return result.file;
+          }
+        : file,
+      {
+        videoProps: { trimParams, cropParams, compression: shouldPreprocess },
+      },
+      {
+        kind: "video",
+        sourceFile: file,
+        operationLabel: "Compressing Media",
+        debugSession,
+      },
+    );
+  }
+  return { loading, error, uploadVideo };
+}
+
+export function usePdfUpload() {
+  const { loading, error, uploadAsset } = useAssetUpload();
+  async function uploadPdf(file: File, compress: boolean = true) {
+    return await uploadAsset(file, {
+      pdfProps: { compress },
+    }, {
+      kind: "pdf",
+      sourceFile: file,
+      operationLabel: "Compressing Media",
+    });
+  }
+  return { loading, error, uploadPdf };
+}
+
+export default useAssetUpload;

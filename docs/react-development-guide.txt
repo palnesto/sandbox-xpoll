@@ -1,0 +1,757 @@
+React Frontend Development Guide
+For junior engineers working in this codebase and similar company React applications
+
+Purpose
+This guide defines the default way we build frontend features in React. It is opinionated on purpose. Junior engineers should not need to invent architecture on every task. Follow these defaults unless a senior engineer approves an exception.
+
+This guide is based on the current stack in this repository:
+- React 18
+- TypeScript
+- Vite
+- React Router with vite-plugin-pages
+- TanStack Query
+- React Hook Form
+- Zod
+- Zustand
+- Tailwind CSS
+- shadcn/ui and Radix primitives
+
+The goal is simple:
+- predictable code
+- fewer regressions
+- easier reviews
+- easier onboarding
+- clear ownership of data, state, and UI
+
+==================================================
+1. Core engineering principles
+==================================================
+
+1. Build for clarity before cleverness.
+Reason: Most frontend bugs come from hidden behavior, not from missing abstraction.
+
+2. Keep one source of truth for each kind of state.
+Reason: Bugs increase when the same information exists in multiple places.
+
+3. Prefer explicit data flow over magic helpers.
+Reason: Easy-to-follow code is easier to debug and review.
+
+4. Pages should compose features, not contain all feature logic.
+Reason: Large page files become unmaintainable very quickly.
+
+5. Server state is not the same as client UI state.
+Reason: TanStack Query should own server data. Local component state or Zustand should own UI state.
+
+6. A component should do one job well.
+Reason: When a component handles fetching, normalization, persistence, view rendering, and submission together, it becomes fragile.
+
+7. Use TypeScript and Zod to prevent invalid states as early as possible.
+Reason: Validation at the edges is cheaper than debugging broken screens later.
+
+8. Default to accessible and responsive UI.
+Reason: Accessibility and mobile behavior are not optional enhancements.
+
+==================================================
+2. What is already good in this repo and should be kept
+==================================================
+
+The current codebase already has several strong foundations:
+
+1. TypeScript strict mode is enabled.
+Reason: This catches a large class of bugs before runtime.
+
+2. API endpoints are centralized in `src/api/endpoints/index.ts`.
+Reason: Centralized routes reduce typos and make backend integration easier to audit.
+
+3. TanStack Query is already set up.
+Reason: It is the correct default for server state, caching, retries, invalidation, and loading status.
+
+4. React Hook Form and Zod are already in use.
+Reason: This is a strong form stack for type-safe validation and predictable submission.
+
+5. Shared form field wrappers already exist.
+Reason: Reusable field primitives reduce form inconsistency.
+
+6. Tailwind, shadcn/ui, and Radix are present.
+Reason: This gives the team a reusable design foundation and accessible primitives.
+
+7. Path aliasing with `@/` is configured.
+Reason: Import paths are easier to read and refactor.
+
+8. There is already an error boundary component.
+Reason: Failure isolation is better than a full app crash.
+
+These are worth keeping. The problem is not the tool choice. The main problem is inconsistent application of those tools.
+
+==================================================
+3. High-level strategy every engineer must follow
+==================================================
+
+When building any new feature, work in this order:
+
+1. Understand the user outcome.
+Question to answer: what must the user be able to do after this feature exists?
+
+2. Define the backend contract.
+Question to answer: what shape comes from the API and what shape does the page actually need?
+
+3. Decide state ownership.
+Question to answer:
+- Is this server state? Use TanStack Query.
+- Is this temporary form state? Use React Hook Form.
+- Is this local UI state? Use `useState`.
+- Is this cross-route or cross-feature UI state? Consider Zustand.
+
+4. Define the feature boundary.
+Question to answer: what files belong to the feature and what can stay generic?
+
+5. Build schemas and types first.
+Reason: The data contract should be clear before the UI is built.
+
+6. Build feature-specific query and mutation hooks.
+Reason: Pages should not manually know every API detail.
+
+7. Build presentational components.
+Reason: UI should receive already-prepared data whenever possible.
+
+8. Compose the route page last.
+Reason: Route files should stay thin and readable.
+
+9. Add loading, empty, error, and success states.
+Reason: A feature is not complete if only the happy path works.
+
+10. Test behavior and perform manual QA.
+Reason: Shipping without verification is not engineering.
+
+==================================================
+4. Project structure rules
+==================================================
+
+Current repo observation:
+There are many page files and many large feature components. Some domain logic is also spread across pages, hooks, stores, and utilities.
+
+Recommended standard:
+
+1. Keep route files thin.
+Each file in `src/pages` should usually do only this:
+- read route params
+- call a feature container or feature screen
+- provide route-specific guards or layout metadata only if necessary
+
+2. Group feature code by domain.
+Preferred shape:
+
+src/
+  features/
+    campaigns/
+      api/
+      components/
+      hooks/
+      schemas/
+      types/
+      utils/
+      screens/
+
+Reason: Pages are an entry point, not the right place to keep all behavior.
+
+3. Keep shared code in clearly named layers:
+- `src/components/ui` for low-level reusable UI primitives
+- `src/components/commons` only for truly cross-feature reusable components
+- `src/hooks` for generic hooks only
+- `src/features/<feature>/hooks` for feature hooks
+- `src/schema` only if shared across multiple domains
+- `src/utils` only for generic pure helpers
+
+4. Do not put domain-heavy logic in `src/utils` if it belongs to one feature.
+Reason: Generic folders quickly become dumping grounds.
+
+5. Avoid files above roughly 250 to 300 lines unless there is a good reason.
+Reason: Very large files become review bottlenecks and hide bugs.
+
+==================================================
+5. TypeScript rules
+==================================================
+
+1. Never introduce new `any` unless there is a temporary migration reason.
+If used, add a short comment explaining why.
+
+2. Prefer exact domain types over loose records.
+Bad:
+`Record<string, unknown>`
+Good:
+`type CampaignFilters = { page?: number; status?: "draft" | "live" }`
+
+3. Prefer union types for known states.
+Reason: This prevents impossible UI branches.
+
+4. Use Zod as the source of truth for user input and API normalization where possible.
+Reason: Validation and typing should stay aligned.
+
+5. Keep transport types and UI types separate when needed.
+Reason: The API shape is often not the same as what the screen should consume.
+
+Example:
+- `CampaignResponseDto` for backend data
+- `CampaignCardModel` for UI rendering
+
+==================================================
+6. Routing and layout rules
+==================================================
+
+Current repo observation:
+Public/private behavior and layout rules are currently determined with hard-coded pathname arrays in app and layout files.
+
+Recommended standard:
+
+1. Route files should declare intent, not rely on distant arrays.
+Reason: Hard-coded pathname lists are easy to forget when new routes are added.
+
+2. Prefer route-level metadata or wrapper components for:
+- public vs private routes
+- layout choice
+- title and analytics behavior
+
+3. Keep route guards simple.
+Reason: Authentication, redirection intent, referral handling, and layout logic should not all live in the same file if they can be separated.
+
+4. A page should render one main screen component.
+Reason: It keeps routing separate from domain behavior.
+
+Better pattern:
+- `src/pages/campaigns/edit/[id]/overview.tsx` reads params and renders `CampaignOverviewScreen`
+- `CampaignOverviewScreen` owns feature composition
+
+==================================================
+7. Data fetching with TanStack Query
+==================================================
+
+This is one of the most important sections.
+
+Rules:
+
+1. TanStack Query owns server state.
+Use it for:
+- fetched lists
+- detail screens
+- pagination
+- polling
+- cached profile/session data
+
+Do not copy fetched data into Zustand unless there is a very specific reason.
+
+2. Use one HTTP client strategy across the app.
+Current repo issue:
+The codebase mixes `axios` wrappers and raw `fetch` calls.
+
+Recommended rule:
+Use one shared API client for all normal HTTP requests. In this repo, `axios` is the better default because interceptors are already set up.
+
+Reason:
+- one place for auth credentials
+- one place for errors
+- one place for headers
+- easier testing and tracing
+
+3. Feature hooks should return normalized data, not raw transport objects.
+Current repo issue:
+`useApiQuery` returns an Axios response, while other query utilities unwrap data differently.
+
+Recommended rule:
+Do not make pages read `data?.data?.data`.
+Instead, expose feature hooks like:
+- `useMeQuery()`
+- `useCampaignByIdQuery(campaignId)`
+- `usePollsInfiniteQuery(filters)`
+
+Each hook should return a stable, typed data shape that the page can consume directly.
+
+Reason:
+- fewer repetitive null checks
+- less coupling to transport shape
+- easier refactors when backend response envelopes change
+
+4. Query keys must be stable, explicit, and centralized.
+Preferred shape:
+- `["profile", "me"]`
+- `["campaigns", campaignId]`
+- `["campaigns", "list", filters]`
+
+Reason: Good query keys make invalidation predictable.
+
+5. Do not hide too much behavior in generic hooks.
+Generic helpers are useful, but the final hook used by screens should be feature-specific.
+
+Good layering:
+- generic base helper: `useApiInfiniteQuery`
+- feature hook: `usePollsInfinite`
+
+6. Mutations must define cache behavior explicitly.
+After success, do one of:
+- invalidate affected queries
+- update cache optimistically
+- navigate only after cache/state is correct
+
+Reason: Mutation success without cache maintenance causes stale UI.
+
+7. Do not duplicate the same query many times across the app without a plan.
+Current repo observation:
+`endpoints.profile.me` is queried from many pages and components.
+
+Better approach:
+- expose a dedicated session hook
+- rely on query cache
+- avoid repeated local copies unless needed for optimistic UX
+
+8. Use `enabled` for dependent queries instead of conditional hook execution.
+Reason: Hooks must stay deterministic.
+
+9. Keep API normalization close to the query.
+Reason: Pages should not repeatedly reshape API payloads.
+
+10. Use infinite queries only when the UX truly benefits from incremental loading.
+Reason: Simpler pagination is easier to reason about when infinite scroll is not needed.
+
+==================================================
+8. React Hook Form and Zod rules
+==================================================
+
+The repo is already moving in the right direction here. Keep that direction.
+
+1. Every non-trivial form must have a Zod schema.
+Reason: Validation rules should not be scattered across inputs and submit handlers.
+
+2. The schema should define:
+- required fields
+- length constraints
+- formatting rules
+- transformations when needed
+
+3. Form field components should stay dumb.
+They should render and connect to RHF. They should not own business rules that belong in the schema.
+
+4. Use RHF for submission state, dirty state, validation state, and field registration.
+Reason: Do not rebuild form state management by hand.
+
+5. Normalize once.
+Current repo observation:
+Some normalization happens in field components, some in schema, some in submit helpers.
+
+Recommended rule:
+- input-level normalization only for UX typing behavior
+- schema-level normalization for validation and transport-ready values
+- submit handler should stay minimal
+
+Reason: Validation logic should be easy to locate.
+
+6. Do not mix backend DTO building with component rendering.
+Preferred flow:
+- raw form values
+- schema validation and normalization
+- payload mapping helper
+- mutation
+
+7. Keep form sections modular.
+If a screen has media upload, link fields, rich text, and metadata, split them into subcomponents or custom hooks.
+
+Reason: Large upsert screens are hard to debug when everything lives together.
+
+==================================================
+9. Zustand rules
+==================================================
+
+Zustand is useful, but it should be used carefully.
+
+Use Zustand for:
+- cross-route draft state
+- auth/session snapshot if truly needed
+- temporary UI workflows that span multiple screens
+
+Do not use Zustand for:
+- normal fetched lists
+- duplicate server cache
+- data that only one component tree needs
+
+Current repo observation:
+There are multiple stores, including large draft-oriented stores with persistence logic mixed in.
+
+Recommended rules:
+
+1. Keep stores small and focused.
+Reason: Large stores become mini-backends in the browser.
+
+2. A store should represent one concern.
+Good:
+- auth session
+- create campaign draft
+Bad:
+- everything related to campaigns in one store
+
+3. Persist only what provides real UX value.
+Reason: Persisted stale state is a common source of confusion.
+
+4. If persisting, define:
+- key name
+- TTL
+- hydration behavior
+- cleanup behavior
+- what happens when backend data changes
+
+5. Do not store derivable values unless performance requires it.
+Reason: Derived data can go stale.
+
+6. Never use Zustand as a replacement for TanStack Query.
+Reason: Query cache already solves server state better.
+
+==================================================
+10. Component design rules
+==================================================
+
+1. Split components into these categories:
+- page/route components
+- screen/container components
+- presentational feature components
+- shared UI primitives
+
+2. Container components may fetch and coordinate state.
+Presentational components should mostly receive props.
+
+3. Keep side effects out of purely visual components.
+Reason: Easier testing and reuse.
+
+4. Do not leave debug logging in committed UI code.
+Current repo observation:
+There are debug flags and console logging in some files.
+
+Rule:
+Remove logs before merge unless they are intentional telemetry.
+
+5. Do not use `useMemo` and `useCallback` by default.
+Use them only when:
+- referential stability matters
+- an expensive computation is proven
+- a child optimization depends on it
+
+Reason: Unnecessary memoization adds noise and false complexity.
+
+6. Prefer Radix or existing UI primitives over hand-rolled interactive controls when possible.
+Reason: Accessibility and keyboard behavior are hard to get right manually.
+
+==================================================
+11. Styling and design system rules
+==================================================
+
+1. Use Tailwind for layout and common styling.
+Reason: It is already the team standard.
+
+2. Use design tokens and shared primitives instead of ad hoc colors everywhere.
+Reason: Consistency matters more than local convenience.
+
+3. Prefer `src/components/ui` and existing shared wrappers before creating a new custom primitive.
+Reason: Too many one-off buttons, inputs, and modals create visual drift.
+
+4. Keep spacing, radius, type scale, and color semantics consistent.
+Use semantic tokens where possible:
+- background
+- foreground
+- muted
+- destructive
+
+5. Make responsive behavior intentional.
+Every new screen should be checked at:
+- mobile
+- tablet
+- desktop
+
+6. Avoid hard-coding heights unless the UX requires it.
+Reason: Fixed heights often break content and scrolling on smaller devices.
+
+==================================================
+12. Accessibility rules
+==================================================
+
+1. Every form field must have a visible label or accessible name.
+2. Icon-only buttons must have an accessible label.
+3. Dialogs, drawers, menus, and tooltips should use accessible primitives.
+4. Keyboard navigation must work.
+5. Error states must be readable and not rely on color alone.
+6. Focus states must remain visible.
+
+Reason:
+Accessible UI is part of correct UI, not optional polish.
+
+==================================================
+13. Error handling and user feedback
+==================================================
+
+1. Every async screen must handle:
+- loading
+- empty
+- error
+- success
+
+2. Use error boundaries for crash containment.
+3. Use toast notifications for transient status, not as the only place an error appears.
+4. Inline form errors belong near the field.
+5. Fatal screen errors should provide a retry path.
+
+Current repo observation:
+There is some toast and boundary infrastructure, but error handling is not fully standardized.
+
+Recommended rule:
+Every feature must decide explicitly what the user sees when the request fails.
+
+==================================================
+14. Performance rules
+==================================================
+
+1. Optimize after identifying a real issue.
+2. Use lazy loading for route-level bundles.
+3. Use pagination or infinite loading for large datasets.
+4. Avoid unnecessary re-renders by keeping state local where possible.
+5. Defer expensive filtering or searching when UX calls for it.
+6. Memoize only when it measurably helps.
+
+Reason:
+Premature optimization makes code harder to understand.
+
+==================================================
+15. Security and data safety rules
+==================================================
+
+1. Never trust user input.
+Validate with Zod and sanitize rich content where necessary.
+
+2. Be careful with HTML rendering.
+Reason: Rich text and external content can become security issues.
+
+3. Keep auth-sensitive requests on the shared client with credentials configured correctly.
+
+4. Do not leak backend response internals directly to users unless intended.
+
+5. Keep environment-specific behavior explicit and simple.
+Current repo observation:
+Some environment checks rely on string comparisons of `VITE_MODE`.
+
+Better rule:
+Prefer clear, centralized environment helpers and use `import.meta.env.DEV` or `import.meta.env.PROD` where appropriate.
+
+==================================================
+16. Testing and verification rules
+==================================================
+
+Current repo observation:
+There is no visible standard test setup in `package.json`.
+
+This should improve.
+
+Minimum expectation for every feature:
+
+1. Manual QA checklist
+- happy path works
+- loading state works
+- error state works
+- empty state works
+- mobile layout works
+- keyboard interaction works
+
+2. Add automated tests for critical logic.
+Priority order:
+- utility functions
+- schema validation
+- custom hooks with business logic
+- complex form behavior
+- mission-critical screens
+
+Recommended stack:
+- Vitest
+- React Testing Library
+
+Reason:
+Frontend without tests becomes regression-prone as the codebase grows.
+
+==================================================
+17. Code review checklist
+==================================================
+
+Before requesting review, the engineer should verify:
+
+1. Is the route/page file thin and readable?
+2. Is server state handled with TanStack Query?
+3. Is form state handled with RHF and Zod?
+4. Is global state actually necessary, or could local state work?
+5. Are there any new `any` types?
+6. Is the API response normalized before reaching the UI?
+7. Are loading, error, and empty states handled?
+8. Is the UI accessible and responsive?
+9. Are query keys and invalidation logic correct?
+10. Is there any duplicated logic that should be extracted?
+11. Are console logs removed?
+12. Is the feature tested or at least manually verified?
+
+==================================================
+18. Specific things this codebase should do better
+==================================================
+
+This section is intentionally direct. These are the main improvement areas visible in the current repo.
+
+1. Standardize the API layer.
+Current issue:
+- `axios` and raw `fetch` are both used
+- some hooks return raw responses
+- some hooks unwrap data
+- response handling is inconsistent
+
+Better approach:
+- use one HTTP client
+- define one response normalization strategy
+- expose feature hooks with clean typed return values
+
+2. Stop making route and layout logic depend on pathname arrays.
+Current issue:
+- public/private and layout behavior are partly controlled by long hard-coded route lists
+
+Better approach:
+- attach route metadata
+- use small wrappers for route access and layout selection
+
+3. Split very large feature components.
+Current issue:
+- some feature files mix fetching, upload behavior, form setup, normalization, persistence, and rendering in one place
+
+Better approach:
+- `useFeatureForm`
+- `useFeatureMedia`
+- `FeatureScreen`
+- `FeatureFormSection`
+
+4. Use TanStack Query more consistently for detail pages and entity fetching.
+Current issue:
+- some custom hooks still use manual `fetch` and `useState`
+
+Better approach:
+- move those flows to typed queries and mutations
+
+5. Reduce repeated session/profile queries.
+Current issue:
+- `/me` is queried in many places
+
+Better approach:
+- expose a single session query hook
+- derive child behavior from cached query data
+
+6. Tighten Zustand usage.
+Current issue:
+- some stores hold a lot of draft behavior and persistence logic directly
+
+Better approach:
+- keep stores smaller
+- move persistence helpers into dedicated modules
+- document store ownership clearly
+
+7. Remove transport-shape leakage from UI.
+Current issue:
+- code often reads nested `data.data.data`
+
+Better approach:
+- normalize once at query boundary
+- pass screen-friendly models forward
+
+8. Improve environment handling.
+Current issue:
+- environment decisions are spread out and rely on string checks
+
+Better approach:
+- centralize environment helpers
+- make local, development, test, and production behavior explicit
+
+9. Add a real testing baseline.
+Current issue:
+- no clear test runner or test script is present
+
+Better approach:
+- add unit and component tests for critical flows first
+
+10. Remove debug-only code from production paths.
+Current issue:
+- debug logs and ad hoc flags exist in feature code
+
+Better approach:
+- use proper dev tooling or feature flags
+- avoid shipping noisy console output
+
+==================================================
+19. Recommended default implementation pattern for a new feature
+==================================================
+
+If you are building a new feature, follow this sequence:
+
+Step 1: Define the domain
+- what entity is being shown or edited?
+- what inputs does the backend expect?
+- what output does the UI need?
+
+Step 2: Create schema and types
+- input schema with Zod
+- DTO type if needed
+- UI model type if needed
+
+Step 3: Add endpoint constant
+- place it in `src/api/endpoints/index.ts`
+
+Step 4: Add API function or feature hook
+- query hook for reads
+- mutation hook for writes
+- normalize response before returning
+
+Step 5: Build feature-level UI
+- create focused components
+- keep presentation separate from transport details
+
+Step 6: Build route/page wrapper
+- read params
+- render the feature screen
+
+Step 7: Add feedback states
+- skeleton or loader
+- empty state
+- inline error
+- success confirmation
+
+Step 8: Verify
+- desktop
+- mobile
+- keyboard
+- network error
+- retry behavior
+
+==================================================
+20. Definition of done for frontend work
+==================================================
+
+A frontend task is not done when the screen "looks correct".
+
+It is done when:
+- the architecture follows team defaults
+- the state ownership is correct
+- the API integration is typed and normalized
+- the user gets proper feedback in all states
+- the code is readable by another engineer
+- the feature works on mobile and desktop
+- the main edge cases were checked
+
+==================================================
+21. Final guidance to junior engineers
+==================================================
+
+When unsure, choose the simpler option that preserves clear boundaries.
+
+Ask these questions before writing code:
+- Does this belong to the page, the feature, or a shared layer?
+- Is this server state, form state, local UI state, or global UI state?
+- Am I repeating a transport detail in the UI?
+- Will another engineer understand this file in five minutes?
+
+If the answer is no, stop and simplify the design.
+
+The company standard is not "use many libraries".
+The standard is "use the right tool consistently and keep the codebase understandable".

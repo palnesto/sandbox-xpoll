@@ -1,0 +1,28 @@
+{
+  "groups": [
+    {
+      "id": "area",
+      "title": "Area",
+      "selection": "single",
+      "defaultSelectedIds": ["island"],
+      "options": [
+        { "id": "island", "label": "Island" },
+        { "id": "province", "label": "Province" },
+        { "id": "districts", "label": "Districts" }
+      ]
+    },
+    {
+      "id": "subject",
+      "title": "Subject",
+      "selection": "multi",
+      "defaultSelectedIds": ["all"],
+      "options": [
+        { "id": "all", "label": "All Subjects", "exclusive": true },
+        { "id": "bio", "label": "Biology" },
+        { "id": "chem", "label": "Chemistry" },
+        { "id": "phy", "label": "Physics" },
+        { "id": "sci-tech", "label": "Science for Technology" }
+      ]
+    }
+  ]
+}

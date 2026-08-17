@@ -1,0 +1,85 @@
+==============================
+Currency Utils – Cheat Sheet
+==============================
+
+All functions return a Result<T>:
+  - Ok<T>:   { ok: true, value: T }
+  - Err:     { ok: false, error: string, code?: ErrCode }
+
+Use unwrap helpers to safely extract values with fallbacks.
+
+──────────────────────────────
+Core Operations (via amount())
+──────────────────────────────
+
+1) toBase  (human → base units)
+--------------------------------
+amount({
+  op: "toBase",
+  assetId: ASSETS.X_MYST,
+  value: "1.23",
+  output: "bigint" | "string" | "number",
+})
+
+• bigint → safe for DB/ledger
+• string → safe for API/json
+• number → only if allowUnsafeNumber is true
+
+2) toParent  (base → human)
+--------------------------------
+amount({
+  op: "toParent",
+  assetId: ASSETS.X_MYST,
+  value: "1230000000",
+  output: "string" | "number",
+  trim: true,
+  group: true,
+})
+
+• string → formatted "123.45"
+• number → JS number (beware unsafe range)
+
+3) format (UI-friendly)
+--------------------------------
+amount({
+  op: "format",
+  assetId: ASSETS.X_MYST,
+  value: "1234.5678",
+  minFraction: 2,
+  maxFraction: 4,
+  group: true,
+})
+
+// → "1,234.5678"
+
+4) parts / integerPart / decimalPart
+--------------------------------
+amount({ op: "parts", mode: "parent", value: "123.45" })
+// { sign: "", integer: "123", decimal: "45" }
+
+amount({ op: "integerPart", mode: "parent", value: "123.45" })
+// "123"
+
+amount({ op: "decimalPart", mode: "parent", value: "123.45" })
+// "45"
+
+
+──────────────────────────────
+Unwrap Helpers
+──────────────────────────────
+
+unwrapOr(r, fallback)   → r.value or fallback
+unwrapString(r)         → r.value or "—"
+unwrapNumber(r)         → r.value or NaN
+unwrapBigInt(r)         → r.value or 0n
+
+
+──────────────────────────────
+When To Use What
+──────────────────────────────
+
+- Backend / DB writes:     toBase → unwrapBigInt
+- API responses:           toBase → unwrapString
+- UI labels:               toParent / format → unwrapString
+- Charts & math:           toParent → unwrapNumber
+- Fallback-safe UI:        unwrapOr(r, "0.00") or unwrapString

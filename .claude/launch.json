@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "sandbox-xpoll",
+      "runtimeExecutable": "./node_modules/.bin/vite",
+      "runtimeArgs": [],
+      "autoPort": true
+    }
+  ]
+}
