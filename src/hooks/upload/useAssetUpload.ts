@@ -16,12 +16,6 @@ import {
   type AssetUploadPhase,
 } from "@/stores/asset-upload-progress.store";
 
-const folderName = import.meta.env.VITE_DO_PROJECT_FOLDER;
-
-if (!folderName) {
-  console.error("No folder name specified in env (VITE_DO_PROJECT_FOLDER)!");
-}
-
 type PresignedPostResponse = {
   signedUrl: string;
   fields: Record<string, string>;
@@ -41,83 +35,43 @@ type UploadAssetProgressOptions = {
   debugSession?: VideoUploadDebugSession;
 };
 
+/**
+ * SANDBOX: there is no backend to hand out a presigned POST, so this returns a
+ * fake one instantly instead of calling `${VITE_BACKEND_URL}/utils/signed-url`
+ * (which 404s with no backend configured). `uploadFileUsingPost` below matches
+ * this by skipping the XHR and resolving to a local object URL for the file.
+ */
 async function fetchPresignedPostData(
   fileName: string,
-  fileType: string,
-  shouldSameUrl: boolean = false
+  _fileType: string,
+  _shouldSameUrl: boolean = false
 ): Promise<PresignedPostResponse> {
-  if (!folderName) {
-    appToast.error("No folder name specified in env (VITE_DO_PROJECT_FOLDER)!");
-    throw new Error("Missing VITE_DO_PROJECT_FOLDER. Aborting upload.");
-  }
-
-  const res = await fetch(
-    `${import.meta.env.VITE_BACKEND_URL}/utils/signed-url`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        file: { fileName, fileType },
-        folderName,
-        shouldSameUrl,
-      }),
-    }
-  );
-
-  if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    throw new Error(
-      `Failed to fetch presigned POST data: ${txt || res.status}`
-    );
-  }
-
-  return (await res.json()) as PresignedPostResponse;
+  return {
+    signedUrl: "sandbox://local-upload",
+    fields: { key: `sandbox/${Date.now()}-${fileName}` },
+    fileName,
+  };
 }
 
-/** Upload the file to Spaces using the presigned POST data */
+/**
+ * SANDBOX: no Spaces bucket to upload to. Fakes the progress events an XHR
+ * would have emitted, then hands back a local `URL.createObjectURL(file)` —
+ * the picked file previews and plays exactly like a real hosted asset for the
+ * rest of the session, with nothing actually leaving the browser.
+ */
 async function uploadFileUsingPost(
-  signedUrl: string,
-  fields: Record<string, string>,
+  _signedUrl: string,
+  _fields: Record<string, string>,
   file: File,
   onProgress?: (progress: { loaded: number; total?: number }) => void
 ): Promise<string> {
-  const formData = new FormData();
-
-  Object.entries(fields).forEach(([k, v]) => formData.append(k, v));
-  formData.append("file", file);
-
-  await new Promise<void>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", signedUrl);
-
-    xhr.upload.onprogress = (event) => {
-      onProgress?.({
-        loaded: event.loaded,
-        total: event.lengthComputable ? event.total : undefined,
-      });
-    };
-
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve();
-        return;
-      }
-
-      reject(new Error(`File upload failed: ${xhr.responseText || xhr.status}`));
-    };
-
-    xhr.onerror = () => reject(new Error("File upload failed."));
-    xhr.onabort = () => reject(new Error("File upload was aborted."));
-    xhr.send(formData);
-  });
-
-  // ✅ Correct final URL build (DON’T encode full key, it breaks slashes)
-  const base = signedUrl.replace(/\/+$/, "");
-  const key = String(fields.key || "").replace(/^\/+/, "");
-  const finalUrl = `${base}/${key}`;
-
-  return finalUrl;
+  const total = file.size;
+  const steps = 5;
+  for (let i = 1; i <= steps; i++) {
+    await new Promise((r) => setTimeout(r, 80));
+    onProgress?.({ loaded: Math.round((total * i) / steps), total });
+  }
+  return URL.createObjectURL(file);
 }
 
 export function extractKey(url: string): string {
@@ -132,7 +86,7 @@ function useAssetUpload() {
 
   async function uploadAsset(
     fileInput: UploadAssetInput,
-    assetConfig: object,
+    _assetConfig: object,
     progressOptions?: UploadAssetProgressOptions,
   ) {
     setLoading(true);
@@ -255,27 +209,16 @@ function useAssetUpload() {
         finalFileUrl,
       });
 
+      // SANDBOX: production makes the uploaded object public with a second
+      // fetch to `${VITE_BACKEND_URL}/utils/make-public`. The local blob URL
+      // from uploadFileUsingPost is already usable as-is, so that call (and
+      // the extractKey() it depended on) is skipped entirely.
       lastDebugStep = "publishing";
       updateAssetUploadTask(activeTaskId, {
         phase: "publishing",
         phaseProgress: 30,
       });
       debugSession?.log("task:phase", { phase: "publishing" });
-      debugSession?.log("publish:start", {
-        assetConfig,
-      });
-      debugSession?.armStall("publishing", 0, 10_000);
-
-      await fetch(`${import.meta.env.VITE_BACKEND_URL}/utils/make-public`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          file: { fileName: extractKey(finalFileUrl) },
-          assetConfig,
-        }),
-      });
-      debugSession?.clearStall();
       debugSession?.log("publish:success", {
         finalFileUrl,
       });

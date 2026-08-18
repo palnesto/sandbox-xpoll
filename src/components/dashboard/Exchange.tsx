@@ -188,7 +188,7 @@ function Card({ item }: { item: ExchangeCardItem }) {
     item.symbol === "xCure" ||
     item.symbol === "xMeta4" ||
     item.symbol === "xBubbleCoin";
-    item.symbol === "xStan" ||
+  item.symbol === "xStan" ||
     item.symbol === "xK" ||
     item.symbol === "xChart" ||
     item.symbol === "xCut";
@@ -294,7 +294,6 @@ export default function ExchangeCards({
       ASSETS.X_K_MINI,
       ASSETS.X_SCOPE,
       ASSETS.X_SLICE,
-
     ];
 
     return order

@@ -8,7 +8,7 @@ import heroVideo from "@/assets/hero-tentacle.mp4";
 import heroNetworkPoster from "@/assets/hero-network.png";
 import activationSeed from "@/assets/activation-seed.png";
 
-import "./auth-landing.css"; 
+import "./auth-landing.css";
 import { ASSETS } from "@/components/commons/constants";
 import { GlowCircle } from "@/components/commons/circle-button";
 
@@ -717,7 +717,7 @@ export default function AuthLanding() {
           if (entry.isIntersecting) entry.target.classList.add("in-view");
         });
       },
-      { threshold: 0.12, rootMargin: "0px 0px -60px 0px" }
+      { threshold: 0.12, rootMargin: "0px 0px -60px 0px" },
     );
 
     document
@@ -731,8 +731,7 @@ export default function AuthLanding() {
     document
       .querySelectorAll<HTMLElement>(".pathway-step, .val-bar")
       .forEach((el) => {
-        if (!el.hasAttribute("data-reveal"))
-          el.setAttribute("data-reveal", "");
+        if (!el.hasAttribute("data-reveal")) el.setAttribute("data-reveal", "");
         observer.observe(el);
       });
 
@@ -741,22 +740,20 @@ export default function AuthLanding() {
       onMove: (e: MouseEvent) => void;
       onLeave: () => void;
     }> = [];
-    document
-      .querySelectorAll<HTMLElement>(".btn-primary")
-      .forEach((btn) => {
-        const onMove = (e: MouseEvent) => {
-          const rect = btn.getBoundingClientRect();
-          const x = (e.clientX - rect.left - rect.width / 2) * 0.15;
-          const y = (e.clientY - rect.top - rect.height / 2) * 0.15;
-          btn.style.transform = `translate(${x}px, ${y}px)`;
-        };
-        const onLeave = () => {
-          btn.style.transform = "";
-        };
-        btn.addEventListener("mousemove", onMove);
-        btn.addEventListener("mouseleave", onLeave);
-        magneticHandlers.push({ el: btn, onMove, onLeave });
-      });
+    document.querySelectorAll<HTMLElement>(".btn-primary").forEach((btn) => {
+      const onMove = (e: MouseEvent) => {
+        const rect = btn.getBoundingClientRect();
+        const x = (e.clientX - rect.left - rect.width / 2) * 0.15;
+        const y = (e.clientY - rect.top - rect.height / 2) * 0.15;
+        btn.style.transform = `translate(${x}px, ${y}px)`;
+      };
+      const onLeave = () => {
+        btn.style.transform = "";
+      };
+      btn.addEventListener("mousemove", onMove);
+      btn.addEventListener("mouseleave", onLeave);
+      magneticHandlers.push({ el: btn, onMove, onLeave });
+    });
 
     return () => {
       window.removeEventListener("scroll", updateProgress);
@@ -780,7 +777,9 @@ export default function AuthLanding() {
         <nav className="nav">
           <div
             className="brand"
-            dangerouslySetInnerHTML={{ __html: BRAND_LOGO_SVG + "X<span>Poll</span>" }}
+            dangerouslySetInnerHTML={{
+              __html: BRAND_LOGO_SVG + "X<span>Poll</span>",
+            }}
           />
           <button
             type="button"
@@ -792,7 +791,7 @@ export default function AuthLanding() {
               fontFamily: "inherit",
             }}
           >
-            Log in →
+            Sign in →
           </button>
         </nav>
       </div>
@@ -816,7 +815,9 @@ export default function AuthLanding() {
         <div dangerouslySetInnerHTML={{ __html: HERO_BG_HTML }} />
 
         <div className="hero-center">
-          <span className="eyebrow">Idea · Validation · Community · Capital</span>
+          <span className="eyebrow">
+            Idea · Validation · Community · Capital
+          </span>
 
           <h1 className="hero-headline">
             Turn Ideas Into Markets.
@@ -851,13 +852,9 @@ export default function AuthLanding() {
                 <rect x="3" y="5" width="18" height="14" rx="2" />
                 <path d="M3 7l9 6 9-6" />
               </svg>
-              Sign in to the prototype
+              Sign in to the Sandbox
               <span className="auth-arrow">→</span>
             </button>
-
-            <p className="hero-auth-note">
-              Demo environment — all data shown is sample content.
-            </p>
           </div>
 
           <p className="hero-microproof">
@@ -936,74 +933,73 @@ export default function AuthLanding() {
           paddingBottom: "max(2rem, env(safe-area-inset-bottom, 0px))",
         }}
       >
-          <div className="w-full max-w-3xl px-4 md:py-7 flex flex-col items-center gap-8">
-            <div
-              className="flex h-14 w-14 shrink-0 items-center justify-center md:h-16 md:w-16 [&_svg]:block [&_svg]:h-full [&_svg]:w-full [&_svg]:drop-shadow-[0_0_8px_rgba(0,212,255,0.45)]"
-              dangerouslySetInnerHTML={{ __html: BRAND_LOGO_SVG }}
-              aria-hidden
-            />
-            {/* middle para */}
-            <div className="max-w-72 sm:max-w-96 md:max-w-none text-center flex flex-col gap-5 mb-5">
-              <p className="font-plusjakarta text-3xl md:text-5xl 2xl font-bold">
-                Email us: <a href="mailto:hello@xpoll.io">hello@xpoll.io</a>
-                {/* Stay <span className="text-nowrap">tuned for</span> XPOLL insights */}
-              </p>
-              <p className="font-inter font-normal text-base md:text-2xl text-[#A5ABB6]">
-                Phone: <a href="tel:+1 860 655 0095">+1 860 655 0095</a>
-              </p>
-            </div>
-            <div className="flex items-center gap-12 md:gap-20">
-              <GlowCircle
-                img={ASSETS.icons.x}
-                size="md"
-                className="h-16 p-[1rem] md:h-20 md:p-[1.35rem]"
-                onClick={() =>
-                  window.open("https://x.com/xpollplatform", "_blank")
-                }
-              />
-              <GlowCircle
-                img={ASSETS.icons.instagram}
-                size="md"
-                className="h-16 p-[1rem] md:h-20 md:p-[1.35rem]"
-                onClick={() =>
-                  window.open(
-                    "https://www.instagram.com/xpollplatform/",
-                    "_blank",
-                  )
-                }
-              />
-              <GlowCircle
-                img={ASSETS.icons.telegram}
-                size="md"
-                className="h-16 p-[1rem] md:h-20 md:p-[1.35rem]"
-                onClick={() =>
-                  window.open("https://t.me/xpollplatform", "_blank")
-                }
-              />
-            </div>
-          </div>
-          {/* footer */}
-          <div className="flex flex-col items-center gap-4 text-center w-full pt-10 md:pt-16 pb-10 md:pb-16 text-sm md:text-lg lg:text-lg">
-
-            <a
-              href="https://www.canvaslabs.world/"
-              target="_blank"
-              className="text-white/50 hover:text-white/60 transition-colors"
-            >
-              A Canvas Labs Innovation
-            </a>
-            <a
-              href="https://xpoll.io/privacy-policy"
-              target="_blank"
-              id="legal-privacy"
-              className="text-white/50 hover:text-white/60 transition-colors"
-            >
-              Privacy Policy
-            </a>
-            <p className="text-white/50 hover:text-white/60 transition-colors">
-              © 2026 XPoll Inc. All rights reserved.
+        <div className="w-full max-w-3xl px-4 md:py-7 flex flex-col items-center gap-8">
+          <div
+            className="flex h-14 w-14 shrink-0 items-center justify-center md:h-16 md:w-16 [&_svg]:block [&_svg]:h-full [&_svg]:w-full [&_svg]:drop-shadow-[0_0_8px_rgba(0,212,255,0.45)]"
+            dangerouslySetInnerHTML={{ __html: BRAND_LOGO_SVG }}
+            aria-hidden
+          />
+          {/* middle para */}
+          <div className="max-w-72 sm:max-w-96 md:max-w-none text-center flex flex-col gap-5 mb-5">
+            <p className="font-plusjakarta text-3xl md:text-5xl 2xl font-bold">
+              Email us: <a href="mailto:hello@xpoll.io">hello@xpoll.io</a>
+              {/* Stay <span className="text-nowrap">tuned for</span> XPOLL insights */}
             </p>
-          </div> 
+            <p className="font-inter font-normal text-base md:text-2xl text-[#A5ABB6]">
+              Phone: <a href="tel:+1 860 655 0095">+1 860 655 0095</a>
+            </p>
+          </div>
+          <div className="flex items-center gap-12 md:gap-20">
+            <GlowCircle
+              img={ASSETS.icons.x}
+              size="md"
+              className="h-16 p-[1rem] md:h-20 md:p-[1.35rem]"
+              onClick={() =>
+                window.open("https://x.com/xpollplatform", "_blank")
+              }
+            />
+            <GlowCircle
+              img={ASSETS.icons.instagram}
+              size="md"
+              className="h-16 p-[1rem] md:h-20 md:p-[1.35rem]"
+              onClick={() =>
+                window.open(
+                  "https://www.instagram.com/xpollplatform/",
+                  "_blank",
+                )
+              }
+            />
+            <GlowCircle
+              img={ASSETS.icons.telegram}
+              size="md"
+              className="h-16 p-[1rem] md:h-20 md:p-[1.35rem]"
+              onClick={() =>
+                window.open("https://t.me/xpollplatform", "_blank")
+              }
+            />
+          </div>
+        </div>
+        {/* footer */}
+        <div className="flex flex-col items-center gap-4 text-center w-full pt-10 md:pt-16 pb-10 md:pb-16 text-sm md:text-lg lg:text-lg">
+          <a
+            href="https://www.canvaslabs.world/"
+            target="_blank"
+            className="text-white/50 hover:text-white/60 transition-colors"
+          >
+            A Canvas Labs Innovation
+          </a>
+          <a
+            href="https://xpoll.io/privacy-policy"
+            target="_blank"
+            id="legal-privacy"
+            className="text-white/50 hover:text-white/60 transition-colors"
+          >
+            Privacy Policy
+          </a>
+          <p className="text-white/50 hover:text-white/60 transition-colors">
+            © 2026 XPoll Inc. All rights reserved.
+          </p>
+        </div>
       </footer>
     </div>
   );

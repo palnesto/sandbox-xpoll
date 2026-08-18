@@ -98,9 +98,6 @@ export default function LoginPage() {
       <div className="absolute z-10 flex flex-col min-h-screen items-start top-[25%] md:top-0 md:justify-center px-4 sm:px-6 md:ml-16 md:p-8 md:pt-0 w-full max-w-[440px]">
         <header className="mb-8 hidden md:block">
           <h1 className="text-lg font-medium">Sign in</h1>
-          <p className="mt-1 text-[13px] text-gray-600">
-            Prototype environment — demo data only.
-          </p>
         </header>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8 w-full">
@@ -157,9 +154,11 @@ export default function LoginPage() {
           )}
 
           <div className="pt-6 text-center">
+            {/* No `type` prop on CommonButton — a bare button inside a form
+                already submits, which keeps Enter-to-submit working. */}
             <CommonButton
               text={isSubmittingLogin ? "Signing in…" : "Next"}
-              type="submit"
+              onClick={undefined}
               disabled={!isValid || isSubmittingLogin}
               className="disabled:opacity-50"
             />

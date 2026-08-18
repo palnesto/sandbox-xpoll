@@ -13,16 +13,9 @@ export const SANDBOX_PASSWORD = "Susan";
 /** Where we land after a successful login. */
 export const HOME_ROUTE = "/home";
 
-/** Artificial latency so loading states are visible in the demo. */
+/** Artificial latency so loading states are visible rather than instant. */
 export const FAKE_LATENCY_MS = 220;
-
-/** Longer pause used by fake checkout / swap flows. */
-export const FAKE_SETTLE_MS = 1800;
 
 export function isValidSandboxLogin(username: string, password: string) {
   return username.trim() === SANDBOX_USERNAME && password === SANDBOX_PASSWORD;
-}
-
-export function canonicalUsername(username: string) {
-  return SANDBOX_USERNAME;
 }

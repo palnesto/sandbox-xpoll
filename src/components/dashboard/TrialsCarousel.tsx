@@ -92,11 +92,17 @@ export default function TrialsCarousel({
 
           {entries?.map((it: any) => {
             const assets = it?.resourceAssets ?? [];
-            const firstImage = assets.find((a: any) => a?.type === "image")?.value;
-            const firstVideo = assets.find((a: any) => a?.type === "video")?.value;
-            const firstYoutube = assets.find((a: any) => a?.type === "youtube")?.value;
+            const firstImage = assets.find(
+              (a: any) => a?.type === "image",
+            )?.value;
+            const firstVideo = assets.find(
+              (a: any) => a?.type === "video",
+            )?.value;
+            const firstYoutube = assets.find(
+              (a: any) => a?.type === "youtube",
+            )?.value;
             const youtubeId = firstYoutube
-              ? extractYouTubeId(String(firstYoutube)) ?? String(firstYoutube)
+              ? (extractYouTubeId(String(firstYoutube)) ?? String(firstYoutube))
               : null;
             const placeholder = "/images/placeholder.png";
 
@@ -145,7 +151,7 @@ export default function TrialsCarousel({
             return (
               <article
                 key={it._id}
-                className="group relative w-[260px] flex-shrink-0 snap-start rounded-xl border-4 border-[#ED0C1D] overflow-hidden"
+                className="group relative w-[260px] flex-shrink-0 snap-start rounded-3xl border-4 border-[#ED0C1D] overflow-hidden"
               >
                 <button
                   onClick={() => navigate(`/trial/${it._id}`)}

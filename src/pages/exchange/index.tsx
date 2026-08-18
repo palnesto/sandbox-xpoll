@@ -1,10 +1,12 @@
-import ExchangeCards from "@/components/dashboard/Exchange";
+// import ExchangeCards from "@/components/dashboard/Exchange";
+import HomeExchangeCards from "@/components/dashboard/HomeExchange";
 
 const Exchange = () => {
   // const navigate = useNavigate();
   return (
     <main className="px-2 md:px-7 py-4">
-      <ExchangeCards />
+      <HomeExchangeCards />
+      {/* <ExchangeCards /> */}
       {/* <Card
         onClick={() => {
           navigate("/exchange/exchange-strain");
