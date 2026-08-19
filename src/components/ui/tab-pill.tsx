@@ -7,7 +7,7 @@ export function TabPill({
   disabled,
 }: {
   active: boolean;
-  onClick: () => void;
+  onClick?: () => void;
   children: React.ReactNode;
   disabled?: boolean;
 }) {

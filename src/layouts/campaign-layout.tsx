@@ -322,7 +322,8 @@ export default function CampaignLayout({
 
             {apiCampaign?.visibility === "unlisted" ? (
               <div className="text-xs font-medium text-[#8A5A00]">
-                Basic campaigns appear only in the selected country, or by sharing a direct link.
+                Basic campaigns appear only in the selected country, or by
+                sharing a direct link.
               </div>
             ) : null}
           </div>
@@ -338,7 +339,9 @@ export default function CampaignLayout({
                 Overview
               </TabPill>
               {!permissions.campaign.edit ? (
-                <PermissionDisabledTooltip hasPermission={permissions.campaign.edit}>
+                <PermissionDisabledTooltip
+                  hasPermission={permissions.campaign.edit}
+                >
                   <TabPill
                     active={activeTab === "add-info"}
                     disabled
@@ -366,10 +369,12 @@ export default function CampaignLayout({
                 </TabPill>
               )}
 
-              {!permissions.campaign.edit || !permissions.campaignTrial.create ? (
+              {!permissions.campaign.edit ||
+              !permissions.campaignTrial.create ? (
                 <PermissionDisabledTooltip
                   hasPermission={
-                    permissions.campaign.edit && permissions.campaignTrial.create
+                    permissions.campaign.edit &&
+                    permissions.campaignTrial.create
                   }
                 >
                   <TabPill
@@ -460,6 +465,7 @@ export default function CampaignLayout({
               >
                 {showPaidFeatureTabLabel ? "Events (Paid Feature)" : "Events"}
               </TabPill>
+              <TabPill active={false}>Emails</TabPill>
             </div>
 
             <div className="flex flex-col items-center gap-1">
