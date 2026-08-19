@@ -366,11 +366,24 @@ const GET_ROUTES: Route[] = [
   [new RegExp(`^${endpoints.strain.getWeb2SellStatus}$`), () => ({
     isSellStrainActive: true,
   })],
+  // Must match ClaimStateDto exactly (pages/exchange/transaction-strain.tsx).
+  // `isSellStrainActive` gates the whole wallet/claim footer — when it is missing
+  // the page renders "Strain Claim Unavailable" and the connected-wallet button
+  // never appears. balanceHigh >= fixedRedeemHigh > 0 keeps Claim enabled.
   [new RegExp(`^${endpoints.strain.getClaimState}$`), () => ({
-    canClaim: true,
-    claimableAmount: 1_250_000_000,
-    lastClaimedAt: F.daysAgo(1),
-    streakDays: 12,
+    externalAccountId: F.IDS.user,
+    status: "idle",
+    balanceHigh: "92500000000",
+    pendingHigh: "0",
+    fixedRedeemHigh: "100000000",
+    lastNonce: "7",
+    lastWallet: "0x7E2c4A91Bd3F5C8a06De71b4839Ac25F0e6B1d34",
+    processingDeadlineSec: "600",
+    processingStartedAt: null,
+    processingExpiresAt: null,
+    intentActionId: "6500a1b2c3d4e5f6a0000001",
+    lastTxHash: "0x44a3f9c1d2e4b6780512ab34cd56ef7890a1b2c3d4e5f60718293a4b5c6d2e4b60",
+    isSellStrainActive: true,
   })],
 
   /* ---------------------------------------------------------- payments -- */
@@ -477,6 +490,20 @@ const GET_ROUTES: Route[] = [
 /** Writes never persist. They resolve so the UI can show its success state. */
 const WRITE_ROUTES: Route[] = [
   [new RegExp(`^${endpoints.auth.logout}$`), () => ok("Signed out")],
+  /**
+   * Strain claim. `prepare` must return a full PrepareClaimDto — the page feeds
+   * every field straight into writeContractAsync (BigInt(nonce)/BigInt(deadline)
+   * throw on undefined), so a bare ok() would break the Claim button.
+   */
+  [/^\/external\/actions\/strain\/claim\/prepare$/, () => ({
+    to: "0x7E2c4A91Bd3F5C8a06De71b4839Ac25F0e6B1d34",
+    amount: "100000000",
+    nonce: "8",
+    deadline: String(Math.floor(Date.now() / 1000) + 3600),
+    signature: `0x${"a3f9c1d2e4b67805".repeat(8)}`,
+    intentActionId: "6500a1b2c3d4e5f6a0000001",
+  })],
+  [/^\/external\/actions\/strain\/claim\/unlock$/, () => ({ ok: true })],
   /**
    * Creating a Basic campaign navigates to the new campaign's edit page, so the
    * response has to carry an `_id`. It points at an existing fixture campaign —
