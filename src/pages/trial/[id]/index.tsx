@@ -5,8 +5,7 @@ import {
   Copy,
   Check,
   MessageCircle,
-  Send,
-  MoveLeft,
+  Send, 
 } from "lucide-react";
 import { endpoints } from "@/api/endpoints";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -35,6 +34,7 @@ import {
   buildCampaignShareUrl,
   buildInkDTrialShareUrl,
   buildTrialShareUrl,
+  getClientBaseUrl,
 } from "@/lib/referral/share-url";
 import { truncateText } from "@/utils/truncateWords";
 import { useCountdown } from "@/hooks/countdown";
@@ -169,7 +169,7 @@ export default function TrialDetailPage() {
   const currentId = trial?._id;
   const belongsToCampaignId = trial?.belongsToCampaignId;
 
-  const baseUrl = String(import.meta.env.VITE_CLIENT_URL);
+  const baseUrl = getClientBaseUrl();
   const externalAccountId =
     user?._id ?? user?.id ?? user?.externalAccountId ?? null;
 
@@ -192,7 +192,7 @@ export default function TrialDetailPage() {
           trialId: currentId,
           externalAccountId,
         })
-    : String(new URL("/trial", baseUrl));
+    : new URL("/trial", baseUrl).toString();
 
   const comments = trial?._id && (
     <CommentsBox

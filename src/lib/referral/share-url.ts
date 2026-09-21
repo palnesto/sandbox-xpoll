@@ -8,6 +8,23 @@ import {
 
 export type Kind = "poll" | "trial" | "campaign";
 
+export function getClientBaseUrl() {
+  const configured = String(import.meta.env.VITE_CLIENT_URL ?? "").trim();
+  if (configured) {
+    try {
+      return new URL(configured).toString();
+    } catch {
+      // Fall back to the current deployment when the production env is missing or malformed.
+    }
+  }
+
+  if (typeof window !== "undefined" && window.location.origin) {
+    return window.location.origin;
+  }
+
+  return "http://localhost";
+}
+
 export function buildShareUrl(
   kind: Kind,
   opts: {
@@ -17,7 +34,8 @@ export function buildShareUrl(
     trialId?: string | null; // only used for campaigns
   },
 ) {
-  const { baseUrl, id, externalAccountId, trialId } = opts;
+  const { id, externalAccountId, trialId } = opts;
+  const baseUrl = opts.baseUrl || getClientBaseUrl();
 
   const path =
     kind === "poll"
@@ -100,7 +118,7 @@ export const buildInkDBlogShareUrl = (opts: {
 }) => {
   const u = new URL(
     `/inkd/inkd-blog/${encodeURIComponent(opts.inkdBlogId)}`,
-    opts.baseUrl,
+    opts.baseUrl || getClientBaseUrl(),
   );
 
   if (opts.externalAccountId) {
@@ -118,7 +136,10 @@ export const buildInkDTrialShareUrl = (opts: {
   trialId: string;
   externalAccountId?: string | null;
 }) => {
-  const u = new URL(`/trial/${encodeURIComponent(opts.trialId)}`, opts.baseUrl);
+  const u = new URL(
+    `/trial/${encodeURIComponent(opts.trialId)}`,
+    opts.baseUrl || getClientBaseUrl(),
+  );
 
   if (opts.externalAccountId) {
     u.searchParams.set(

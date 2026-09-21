@@ -48,7 +48,11 @@ import {
 } from "@/components/ui/dialog";
 import { AlertDialogHeader } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { buildInkDTrialShareUrl, buildTrialShareUrl } from "@/lib/referral/share-url";
+import {
+  buildInkDTrialShareUrl,
+  buildTrialShareUrl,
+  getClientBaseUrl,
+} from "@/lib/referral/share-url";
 import { useAuth } from "@/hooks/useAuth";
 import TrialAccessBlocked from "@/components/trial/trial-access-blocked";
 import { appToast } from "@/utils/toast";
@@ -545,7 +549,7 @@ export default function TrialPolls() {
   });
 
   // share URL
-  const baseUrl = String(import.meta.env.VITE_CLIENT_URL);
+  const baseUrl = getClientBaseUrl();
   const externalAccountId =
     (user as any)?._id ??
     (user as any)?.id ??
@@ -573,7 +577,7 @@ export default function TrialPolls() {
               trialId: currentId,
               externalAccountId,
             })
-        : String(new URL("/trial", baseUrl));
+        : new URL("/trial", baseUrl).toString();
 
   const comments = trial?._id && (
     <CommentsBox
