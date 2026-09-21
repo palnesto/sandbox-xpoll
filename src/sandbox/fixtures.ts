@@ -482,12 +482,6 @@ const TRIAL_SEEDS = [
     owner: "Harbour City Forum",
   },
   {
-    title: "Packaging that survives the shelf",
-    description:
-      "Six label treatments tested for recall and trust. Two minutes, five questions.",
-    owner: "Studio Kettle",
-  },
-  {
     title: "Campus services: what is missing?",
     description:
       "Students rank twelve proposed services. Results set the pilot budget for next term.",
@@ -578,8 +572,6 @@ export const DRAFT_TRIALS = DRAFT_TRIAL_IDS.map((id, i) => ({
 const POLL_SEEDS = [
   "Which corridor design should the study prioritise?",
   "How often would you use a late-night service?",
-  "Which label treatment feels most trustworthy?",
-  "What price feels fair for a small-batch kettle?",
   "Which campus service would you use weekly?",
   "Does 'agentic' clarify or confuse the pitch?",
   "Where should grant funding land first?",
@@ -590,8 +582,6 @@ const POLL_SEEDS = [
 const POLL_OPTION_SETS = [
   ["Light rail", "Dedicated bus lane", "Both, phased", "Neither — repair first"],
   ["Most weeknights", "Once or twice a week", "Weekends only", "I wouldn't"],
-  ["Uncoated kraft", "Matte white", "Gloss full-colour", "Minimal label"],
-  ["Under $29", "$29 – $49", "$49 – $79", "Above $79"],
   ["Late-night study space", "Subsidised transport", "Mental health drop-in", "Equipment lending"],
   ["Clarifies it", "Confuses it", "Neutral either way", "Depends on audience"],
   ["Soil health", "Water access", "Seed stock", "Training & advice"],
@@ -761,17 +751,14 @@ export const BLOGS = BLOG_SEEDS.map((seed, i) => {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, ""),
     excerpt: seed.excerpt,
-    summary: seed.excerpt,
-    // Plain text: the INKD reader splits this on blank lines itself and would
-    // print raw markup verbatim. `content` keeps the HTML for editor surfaces.
+    summary: seed.excerpt, 
     description: seed.body.join("\n\n"),
     content: seed.body.map((p) => `<p>${p}</p>`).join(""),
     body: seed.body.join("\n\n"),
     imageUrl: cover,
     coverImage: cover,
     coverImageUrl: cover,
-    resourceAssets: [{ type: "image", value: cover }],
-    // BlogCard picks its cover from these three arrays, in this order.
+    resourceAssets: [{ type: "image", value: cover }], 
     uploadedImageLinks: [cover],
     uploadedVideoLinks: [],
     ytVideoLinks: [],
@@ -819,9 +806,7 @@ const EVENT_SEEDS = [
   },
 ];
 
-export const EVENTS = EVENT_SEEDS.map((seed, i) => {
-  // First two are the campaign-owner's own drafts/live events; the rest are
-  // read-only published events on other people's campaigns.
+export const EVENTS = EVENT_SEEDS.map((seed, i) => { 
   const isOwnerDemo = i < 2;
   const status = isOwnerDemo && i === 0 ? "draft" : "published";
   const ticketsSold = 128 - i * 18;
@@ -845,8 +830,7 @@ export const EVENTS = EVENT_SEEDS.map((seed, i) => {
       postalCode: "06103",
     },
     virtualMeeting: null as { provider: string; url: string; notes?: string } | null,
-    startsAt: daysFromNow(6 + i * 5),
-    // +2h so the card shows a real time range rather than "6:52 AM–6:52 AM".
+    startsAt: daysFromNow(6 + i * 5), 
     endsAt: new Date(Date.now() + (6 + i * 5) * DAY + 2 * 3_600_000).toISOString(),
     timezone: "America/New_York",
     createdAt: daysAgo(12 - i),
@@ -872,8 +856,7 @@ export const EVENTS = EVENT_SEEDS.map((seed, i) => {
     isFree: i === 0,
   };
 });
-
-/** Attendee rosters for published events, keyed by event id. */
+ 
 export const EVENT_ATTENDEES = Object.fromEntries(
   EVENTS.filter((e) => e.status === "published").map((e) => [
     e._id,
@@ -885,12 +868,8 @@ export const EVENT_ATTENDEES = Object.fromEntries(
       issuedAt: daysAgo(i + 1),
     })),
   ]),
-);
+); 
 
-/**
- * `/external/events/discover` returns each event wrapped with the viewer's
- * relationship to it, so the public campaign page can badge invites/tickets.
- */
 export const DISCOVER_EVENTS = EVENTS.filter((e) => e.status === "published").map(
   (event, i) => ({
     event,
@@ -940,11 +919,7 @@ const PETITION_SEEDS = [
   },
 ];
 
-/**
- * One object serves both the public campaign page (title/goal/signatureCount)
- * and the campaign-owner petition manage view (name/uploadedImageLinks/
- * voteCountCache), since both are read from the same fixture array.
- */
+ 
 export const PETITIONS = PETITION_SEEDS.map((p, i) => ({
   ...p,
   name: p.title,
@@ -960,19 +935,7 @@ export const PETITIONS = PETITION_SEEDS.map((p, i) => ({
 }));
 
 /* ------------------------------------------------------------- ledgers --- */
-
-/**
- * Asset-ledger entries.
- *
- * Action names must match the exact vocabulary the history screens filter on
- * (see components/profile/LedgerHistoryList.tsx). Amounts live inside `legs`,
- * selected by `legType` — reward rows are only shown when they carry a
- * `reward` leg, so a flat `amount` field would render nothing.
- *
- * "signup-bonus" is deliberately excluded: its presence puts the app into
- * first-time-signup mode, which hides every coin except XPOLL and pops the
- * bonus modal. The demo account is an established user.
- */
+ 
 const LEDGER_ACTIONS = [
   { action: "poll-reward", legType: LEG_REWARD },
   { action: "trial-reward", legType: LEG_REWARD },
@@ -986,8 +949,7 @@ export const LEDGERS = Array.from({ length: 24 }, (_, i) => {
   const { action, legType } = LEDGER_ACTIONS[i % LEDGER_ACTIONS.length];
   const amount = 150 + i * 35;
   const campaignId = IDS.campaigns[i % IDS.campaigns.length];
-
-  /** Each action renders its own metadata row, so only populate what it reads. */
+ 
   let metadata: Record<string, unknown> = {};
   if (action === "campaign-closure-settlement") {
     metadata = { campaignId };
@@ -1016,14 +978,7 @@ export const LEDGERS = Array.from({ length: 24 }, (_, i) => {
 });
 
 /* -------------------------------------------------------- transactions --- */
-
-/**
- * Sell-intent ledger entries.
- *
- * The exchange screens read the traded amount out of `legs` (matching on
- * assetId + legType) and the state out of `metadata.status`, so the fixture has
- * to carry that structure rather than a flat amount.
- */
+ 
 const SELLABLE_ASSETS = [
   { assetId: ASSETS.X_MYST, minor: 9 },
   { assetId: ASSETS.X_OCTA, minor: 8 },
@@ -1066,12 +1021,7 @@ export const TRANSACTIONS = SELLABLE_ASSETS.flatMap(({ assetId, minor }, ci) =>
     };
   }),
 );
-
-/**
- * Sell-intent totals per asset, keyed by assetId. Amounts are base (minor)
- * units; the exchange summary converts them to parent units for display.
- * Approved totals equal the sum of the APPROVE-status ledger rows above.
- */
+ 
 export const SELL_INTENT_STATS = Object.fromEntries(
   SELLABLE_ASSETS.map(({ assetId, minor }) => {
     const approvedParent = TRANSACTIONS.filter(
@@ -1102,13 +1052,7 @@ export const DONATIONS = Array.from({ length: 8 }, (_, i) => ({
   createdAt: daysAgo(i * 4 + 2),
   message: i % 3 === 0 ? "Keep the corridor study independent." : "",
 }));
-
-/**
- * Marketplace / profile payment history — `PaymentItem` in
- * components/profile/payments-list-section.tsx. Distinct from DONATIONS: this
- * feeds "Payment history" on /marketplace, keyed off `purpose` + `display.rail`
- * (fiat vs crypto), not campaign donations.
- */
+ 
 const PAYMENT_SEEDS = [
   { purpose: "purchase-asset-token" as const, rail: "fiat" as const, tokenSymbol: "XOT", status: "succeeded" as const },
   { purpose: "purchase-asset-token" as const, rail: "crypto" as const, tokenSymbol: "XMT", status: "succeeded" as const },
@@ -1157,15 +1101,7 @@ export const PAYMENTS = PAYMENT_SEEDS.map((seed, i) => {
 
 /* --------------------------------------------------------------- plans --- */
 
-/**
- * Shape matches `CampaignPlan` plus the nested `buyConfig` that
- * lib/payments/buy-config.ts normalizes (enable flags + pricing keyed by
- * upper-cased currency / token symbol, amounts in minor units).
- *
- * Plans are duplicated across the political / non-political and data-access
- * axes because the create page filters on `isPolitical` and
- * `donationSupported` before rendering anything.
- */
+ 
 function makeBuyConfig(fiatMinor: number, withSubscription = false) {
   if (fiatMinor === 0) return null;
   return {

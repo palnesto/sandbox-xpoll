@@ -2,8 +2,8 @@ import { ArrowLeft, X } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useSearchParams } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { NewForYouCampaignsBlock } from "@/components/dashboard/NewCampaigns";
-import { ParticipatedCampaignsBlock } from "@/components/dashboard/ParticipatedCampaigns";
+import { NewForYouCampaignsBlock } from "@/components/campaign/NewCampaigns";
+import { ParticipatedCampaignsBlock } from "@/components/campaign/ParticipatedCampaigns";
 import { useApiInfinitePagedQuery } from "@/hooks/useApiInfinitePagedQuery";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { useApiMutation } from "@/hooks/useApiMutation";
@@ -106,8 +106,7 @@ export default function AllCampaigns() {
       prev.filter((asset) => asset.value !== assetId),
     );
   };
-
-  /** Selected value in control: show only asset image, scroll horizontally if overflow */
+ 
   const RewardAssetMultiValue = (props: any) => (
     <components.MultiValue {...props}>
       <img
@@ -409,7 +408,7 @@ export default function AllCampaigns() {
       </div>
 
       <div className="space-y-6 w-full p-4 h-[100vh]">
-        {!participatedLoading && participated.length > 0 && (
+        {/* {!participatedLoading && participated.length > 0 && (
           <ParticipatedCampaignsBlock
             items={participated}
             onItemClick={(c) => openCampaign(c._id)}
@@ -420,7 +419,7 @@ export default function AllCampaigns() {
               debounceToggle(String(id), Boolean(next));
             }}
           />
-        )}
+        )} */}
 
         <NewForYouCampaignsBlock
           filters={campaignFilters}

@@ -1,22 +1,15 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { endpoints } from "@/api/endpoints";
-import { useApiQuery } from "@/hooks/useApiQuery";
 import { ViewAllButton } from "@/utils/view-all-button";
+import { dummyCarouselCampaigns } from "@/lib/campaignDummyData";
 
 export type CampaignsCardItem = {
   id: string;
   title: string;
   imageUrl: string;
 };
-function pickFirstCampaignImage(c): string | null {
-  const img1 = Array.isArray(c?.imageLinks) ? c.imageLinks[0] : null;
-  if (typeof img1 === "string" && img1) return img1;
-  const assets = Array.isArray(c?.resourceAssets) ? c.resourceAssets : [];
-  const imgAsset = assets.find((a) => a?.type === "image" && a?.value);
-  return imgAsset?.value ?? null;
-}
+
 export default function CampaignsCarousel({
   items,
   heading = "Campaigns",
@@ -28,32 +21,7 @@ export default function CampaignsCarousel({
 }) {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
-  const listUrl = endpoints.campaigns.all;
-  const { data, isLoading, isError } = useApiQuery(listUrl);
-
-  const entries = useMemo(() => {
-    const root = data?.data?.data ?? data?.data ?? data ?? {};
-    if (Array.isArray(root)) return root;
-    if (Array.isArray(root?.entries)) return root.entries;
-    if (Array.isArray(root?.campaigns)) return root.campaigns;
-    return [];
-  }, [data]);
-
-  const cards: CampaignsCardItem[] = useMemo(() => {
-    if (Array.isArray(entries) && entries.length) {
-      return entries
-        .map((c: any) => {
-          const imageUrl = pickFirstCampaignImage(c);
-          return {
-            id: String(c?._id ?? c?.id ?? ""),
-            title: String(c?.name ?? c?.title ?? "Untitled"),
-            imageUrl: imageUrl ?? "",
-          };
-        })
-        .filter((x) => !!x.id);
-    }
-    return items ?? [];
-  }, [entries, items]);
+  const cards = items ?? dummyCarouselCampaigns;
 
   const scrollBy = (dir: "left" | "right") => {
     const el = trackRef.current;
@@ -107,7 +75,7 @@ export default function CampaignsCarousel({
             }
           }}
         >
-          {!isLoading && (isError || cards.length === 0) && (
+          {cards.length === 0 && (
             <div className="py-10 pl-1 text-sm text-black/60">
               No campaigns to show.
             </div>

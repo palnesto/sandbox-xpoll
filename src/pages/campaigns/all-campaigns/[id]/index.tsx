@@ -49,6 +49,10 @@ import {
   PublicEventCard,
   type PublicEventCardItem,
 } from "@/components/campaign/events/PublicEventCard";
+import {
+  getDummyCampaignDetail,
+  isDummyCampaignId,
+} from "@/lib/campaignDummyData";
 
 // ==============================
 // ADS (Campaign Trails)
@@ -214,6 +218,7 @@ export default function CampaignDetailsPage() {
   const [searchParams] = useSearchParams();
   const qrId = searchParams.get("qr");
   const campaignId = routeId ?? "";
+  const isDummyCampaign = isDummyCampaignId(campaignId);
   const [donateOpen, setDonateOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [mediaSlide, setMediaSlide] = useState<0 | 1>(0);
@@ -226,7 +231,7 @@ export default function CampaignDetailsPage() {
     isLoading,
     isError,
   } = useApiQuery(getByIdRoute, {
-    enabled: Boolean(campaignId),
+    enabled: Boolean(campaignId) && !isDummyCampaign,
   } as any);
 
   const { data: campaignQrIdData, isLoading: isCampaignQrIdLoading } =
@@ -244,7 +249,7 @@ export default function CampaignDetailsPage() {
     isLoading: trialsLoading,
     isError: trialsError,
   } = useApiQuery(trialsRoute, {
-    enabled: Boolean(campaignId),
+    enabled: Boolean(campaignId) && !isDummyCampaign,
   } as any);
 
   const blogsRoute = `${endpoints.campaigns.blogsAdvancedListing}?enforceUserView=true&belongsToCampaignId=${encodeURIComponent(
@@ -265,6 +270,21 @@ export default function CampaignDetailsPage() {
   }, [blogsResp, campaignId]);
 
   const apiCampaign: ApiCampaignById | null = useMemo(() => {
+    const dummyCampaign = getDummyCampaignDetail(campaignId);
+    if (dummyCampaign) {
+      return {
+        _id: dummyCampaign._id,
+        name: dummyCampaign.title,
+        goal: dummyCampaign.subtitle,
+        status: "live",
+        description: dummyCampaign.description,
+        imageLinks: dummyCampaign.images.filter(Boolean) as string[],
+        externalAuthor: {
+          username: dummyCampaign.organizerName,
+        },
+      } as ApiCampaignById;
+    }
+
     const data = pickDataRoot<any>(apiResp);
     if (!data || typeof data !== "object") return null;
 
@@ -272,7 +292,7 @@ export default function CampaignDetailsPage() {
     if (!campaign?._id) return null;
 
     return campaign as ApiCampaignById;
-  }, [apiResp]);
+  }, [apiResp, campaignId]);
 
   const activeTrials: any[] = useMemo(() => {
     const data = pickDataRoot<any>(trialsResp);
@@ -281,8 +301,9 @@ export default function CampaignDetailsPage() {
   }, [trialsResp]);
 
   const trailRows: TrailRowModel[] = useMemo(() => {
+    if (isDummyCampaign) return getDummyCampaignDetail(campaignId)?.trails ?? [];
     return activeTrials.map(mapApiTrialToRowModel);
-  }, [activeTrials]);
+  }, [activeTrials, campaignId, isDummyCampaign]);
 
  
   const ENABLE_CAMPAIGN_ADS = true;
@@ -494,10 +515,12 @@ export default function CampaignDetailsPage() {
   );
 
   const uiCampaign: CampaignDetailModel | null = useMemo(() => {
+    const dummyCampaign = getDummyCampaignDetail(campaignId);
+    if (dummyCampaign) return dummyCampaign;
     if (!apiCampaign) return null;
     const base = mapCampaignByIdToDetail(apiCampaign);
     return { ...base, trails: trailRows };
-  }, [apiCampaign, trailRows]);
+  }, [apiCampaign, trailRows, campaignId]);
 
   const [img1, img2, img3] = uiCampaign?.images ?? [null, null, null];
 

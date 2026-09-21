@@ -5,15 +5,7 @@ import DefaultLayout from "./layouts/default-layout";
 import { cn } from "./lib/utils";
 import PrivateRoute from "./layouts/private-route";
 import AssetUploadProgressModal from "./components/media/AssetUploadProgressModal";
-
-/**
- * SANDBOX BUILD.
- *
- * The production app wraps authed routes in AuthedProvidersShell to set up
- * Wagmi / Reown AppKit / Sui providers. This prototype has no wallet or chain
- * integration, so that shell is intentionally absent.
- */
-
+ 
 export function App() {
   const location = useLocation();
   const appRoutes = useRoutes(routes);

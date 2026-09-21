@@ -52,6 +52,11 @@ import { buildInkDTrialShareUrl, buildTrialShareUrl } from "@/lib/referral/share
 import { useAuth } from "@/hooks/useAuth";
 import TrialAccessBlocked from "@/components/trial/trial-access-blocked";
 import { appToast } from "@/utils/toast";
+import {
+  buildDummyTrialFixture,
+  DUMMY_IDS,
+  isDummyTrialId,
+} from "@/lib/campaignDummyData";
 
 function hasKeyWithValue(obj: any, key: any) {
   return (
@@ -64,9 +69,10 @@ function hasKeyWithValue(obj: any, key: any) {
 
 export default function TrialPolls() {
   const { user } = useAuth();
-  const { id } = useParams<{ id: string }>();
+  const { id, pollId } = useParams<{ id: string; pollId?: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const isDummyTrial = isDummyTrialId(id);
 
   // IMPORTANT: index is now DECK index (polls + ads)
   const [index, setIndex] = useState(0);
@@ -86,17 +92,20 @@ export default function TrialPolls() {
   const trialRoute = id ? endpoints.trial.getTrialById(id) : "";
   const me = endpoints.profile.me;
   const { data, isLoading, isError } = useApiQuery(trialRoute, {
-    enabled: !!id,
+    enabled: !!id && !isDummyTrial,
   } as any);
 
-  const filteredData = useMemo(() => data?.data?.data ?? null, [data]);
+  const filteredData = useMemo(
+    () => buildDummyTrialFixture(id) ?? data?.data?.data ?? null,
+    [data, id],
+  );
   const isAccessBlocked = filteredData?.accessible === false;
   const blockedMessage = data?.data?.message || "This trail is not available.";
-  const trial = useMemo(() => data?.data?.data?.trial ?? null, [data]);
+  const trial = useMemo(() => filteredData?.trial ?? null, [filteredData]);
 
   const nextTrialId = useMemo(() => {
-    return data?.data?.data?.campaign?.nextTrial?._id ?? null;
-  }, [data]);
+    return filteredData?.campaign?.nextTrial?._id ?? null;
+  }, [filteredData]);
 
   const belongsToCampaignId = trial?.belongsToCampaignId;
   const belongsToInkDBlogId = trial?.belongsToInkDBlogId;
@@ -153,10 +162,10 @@ export default function TrialPolls() {
     : "/inkd";
 
   const pollsRaw = useMemo(
-    () => (data?.data?.data?.polls ?? []) as any[],
-    [data],
+    () => (filteredData?.polls ?? []) as any[],
+    [filteredData],
   );
-  const alreadyCasted = Boolean(data?.data?.data?.alreadyCasted);
+  const alreadyCasted = Boolean(filteredData?.alreadyCasted);
 
   const [castedLocal, setCastedLocal] = useState(false);
 
@@ -217,7 +226,7 @@ export default function TrialPolls() {
         ? { campaignIds: belongsToCampaignId }
         : { isGeneric: true }),
     }),
-    [],
+    [belongsToCampaignId],
   );
 
   const {
@@ -374,10 +383,25 @@ export default function TrialPolls() {
     return map;
   }, [deckItems]);
 
+  const pollIdToDeckIndex = useMemo(() => {
+    const map = new Map<string, number>();
+    for (let di = 0; di < deckItems.length; di++) {
+      const item = deckItems[di];
+      if (!isAd(item)) map.set(String(item._id), di);
+    }
+    return map;
+  }, [deckItems]);
+
   // bootstrap to first unanswered poll (as DECK index)
   const bootstrappedRef = useRef(false);
   useEffect(() => {
     if (!items.length || bootstrappedRef.current) return;
+
+    if (pollId && pollIdToDeckIndex.has(pollId)) {
+      setIndex(pollIdToDeckIndex.get(pollId) ?? 0);
+      bootstrappedRef.current = true;
+      return;
+    }
 
     if (!lockedNow) {
       const firstUnansweredPollIdx = items.findIndex((p) => !votes[p._id]);
@@ -391,7 +415,14 @@ export default function TrialPolls() {
     }
 
     bootstrappedRef.current = true;
-  }, [items, votes, lockedNow, pollIndexToDeckIndex]);
+  }, [items, votes, lockedNow, pollIndexToDeckIndex, pollId, pollIdToDeckIndex]);
+
+  useEffect(() => {
+    if (!id || !currentPollId) return;
+    const nextPath = `/trial/${encodeURIComponent(id)}/polls/${encodeURIComponent(currentPollId)}`;
+    if (window.location.pathname === nextPath) return;
+    navigate(nextPath, { replace: true });
+  }, [currentPollId, id, navigate]);
 
   // Keep trial behavior: if vote map has an invalid selection, snap back to earliest unanswered (deck idx)
   useEffect(() => {
@@ -522,19 +553,27 @@ export default function TrialPolls() {
     null;
 
   const currentId = trial?._id;
-  const currentUrl = currentId
-    ? belongsToInkDBlogId
-      ? buildInkDTrialShareUrl({
-          baseUrl,
-          trialId: currentId,
-          externalAccountId,
-        })
-      : buildTrialShareUrl({
-          baseUrl,
-          trialId: currentId,
-          externalAccountId,
-        })
-    : String(new URL("/trial", baseUrl));
+  const currentUrl =
+    currentId && currentPollId
+      ? String(
+          new URL(
+            `/trial/${encodeURIComponent(currentId)}/polls/${encodeURIComponent(currentPollId)}`,
+            baseUrl,
+          ),
+        )
+      : currentId
+        ? belongsToInkDBlogId
+          ? buildInkDTrialShareUrl({
+              baseUrl,
+              trialId: currentId,
+              externalAccountId,
+            })
+          : buildTrialShareUrl({
+              baseUrl,
+              trialId: currentId,
+              externalAccountId,
+            })
+        : String(new URL("/trial", baseUrl));
 
   const comments = trial?._id && (
     <CommentsBox
@@ -604,7 +643,14 @@ export default function TrialPolls() {
     setShowModal(true);
   };
 
-  if (isLoading) {
+  const completeDummyTrial = () => {
+    setActiveModalAction(null);
+    setCastedLocal(true);
+    setShowModal(false);
+    navigate(`/campaigns/all-campaigns/${trial?.belongsToCampaignId ?? DUMMY_IDS.aaronCampaign}`);
+  };
+
+  if (isLoading && !isDummyTrial) {
     return <Loader2 className="h-6 w-6 animate-spin" />;
   }
   if (isAccessBlocked) {
@@ -875,6 +921,10 @@ export default function TrialPolls() {
         secondaryActionLabel={modalSecondaryButtonLabel}
         onAction={() => {
           if (!id || !allAnswered || lockedNow || submitting) return;
+          if (isDummyTrial) {
+            completeDummyTrial();
+            return;
+          }
           setActiveModalAction("primary");
           setPostSubmitDestination(
             shouldGoNextInkdTrial ? "inkd-next" : "default",

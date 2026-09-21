@@ -41,6 +41,10 @@ import { useCountdown } from "@/hooks/countdown";
 import { extractYouTubeId } from "@/types/petition";
 import TrialAccessBlocked from "@/components/trial/trial-access-blocked";
 import BackButton from "@/components/commons/back-button";
+import {
+  buildDummyTrialFixture,
+  isDummyTrialId,
+} from "@/lib/campaignDummyData";
 
 type Reward = {
   assetId: AssetType;
@@ -66,7 +70,10 @@ type Trial = {
   belongsToCampaignId?: string | null;
   belongsToInkDBlogId?: string | null;
   seenAt?: string | null;
-  externalAuthor?: { username?: string } | string | null;
+  externalAuthor?:
+    | { username?: string; avatar?: { imageUrl?: string } | null }
+    | string
+    | null;
   isForAdmin?: boolean;
 };
 
@@ -95,15 +102,19 @@ export default function TrialDetailPage() {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const isDummyTrial = isDummyTrialId(id);
 
   const { data: meData } = useApiQuery(endpoints.profile.me);
   const me = useMemo(() => meData?.data?.data ?? null, [meData]);
   const { data, isLoading, isError } = useApiQuery(
     endpoints.trial.getTrialById(id!),
-    { enabled: !!id },
+    { enabled: !!id && !isDummyTrial },
   );
 
-  const filteredData = useMemo(() => data?.data?.data ?? null, [data]);
+  const filteredData = useMemo(
+    () => buildDummyTrialFixture(id) ?? data?.data?.data ?? null,
+    [data, id],
+  );
   const isAccessBlocked = filteredData?.accessible === false;
   const blockedMessage = data?.data?.message || "This trail is not available.";
   const trial: Trial | null = useMemo(
@@ -119,10 +130,17 @@ export default function TrialDetailPage() {
   const externalAuthorObj =
     filteredData?.trial?.externalAuthor &&
     typeof filteredData.trial.externalAuthor === "object"
-      ? (filteredData.trial.externalAuthor as { username?: string })
+      ? (filteredData.trial.externalAuthor as {
+          username?: string;
+          avatar?: { imageUrl?: string } | null;
+        })
       : null;
-  const authorLabel = externalAuthorObj?.username
-    ? `Trail by ${externalAuthorObj.username}`
+  const sidebarUsername = me?.profile?.apps?.xpoll?.username;
+  const sidebarAvatar = me?.profile?.apps?.xpoll?.avatar?.imageUrl;
+  const authorUsername = sidebarUsername ?? externalAuthorObj?.username;
+  const authorAvatar = sidebarAvatar ?? externalAuthorObj?.avatar?.imageUrl;
+  const authorLabel = authorUsername
+    ? `Trail by ${authorUsername}`
     : "Trail by admin";
 
   const polls: Poll[] = useMemo(
@@ -130,7 +148,7 @@ export default function TrialDetailPage() {
     [filteredData],
   );
 
-  if (isLoading) {
+  if (isLoading && !isDummyTrial) {
     return <PollCardSkeleton />;
   }
 
@@ -307,7 +325,16 @@ export default function TrialDetailPage() {
         </figure>
         <div className="py-7">
           <p className="font-semibold text-gray-700 uppercase tracking-wide mb-1">
-            {authorLabel}
+            <span className="inline-flex items-center gap-2">
+              {authorAvatar ? (
+                <img
+                  src={authorAvatar}
+                  alt={authorUsername ?? "avatar"}
+                  className="h-7 w-7 rounded-full object-cover"
+                />
+              ) : null}
+              {authorLabel}
+            </span>
           </p>
           <h1 className="text-lg font-semibold">Trail Name : {trial?.title}</h1>
           <p className="text-lg -mt-4 -ml-4">

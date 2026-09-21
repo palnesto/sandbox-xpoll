@@ -80,11 +80,7 @@ const emailWithLengthZ = z.preprocess(
     .email("Enter a valid email")
     .optional(),
 );
-
-/* -------------------------------------------------
- * ✅ WEBSITE – strict external-link validation
- * (same rules as Blog / Petition)
- * ------------------------------------------------- */
+ 
 const websiteExternalLinkZ = z
   .preprocess(
     (v) => (typeof v === "string" ? v.trim() : v),
@@ -100,10 +96,7 @@ const websiteExternalLinkZ = z
       });
     }
   });
-
-/* -------------------------------------------------
- * Media helpers (unchanged)
- * ------------------------------------------------- */
+ 
 const imageStringZ = z
   .preprocess(trimOrEmpty, z.string())
   .refine(
@@ -139,10 +132,7 @@ const videoFileZ =
     : z.any().refine(() => false, "File not supported");
 
 const videoValueZ = z.union([videoStringZ, videoFileZ]);
-
-/* -------------------------------------------------
- * YouTube helpers (unchanged)
- * ------------------------------------------------- */
+ 
 const isYoutubeId = (s: string) => /^[a-zA-Z0-9_-]{11}$/.test(s.trim());
 
 const toYoutubeId = (input: string) => {
@@ -172,18 +162,13 @@ const youtubeIdOrUrlZ = z
   })
   .transform((v) => (v ? (toYoutubeId(v) ?? undefined) : undefined));
 
-/* -------------------------------------------------
- * ✅ ADD LINKS (FINAL)
- * Only website uses strict external-link rules
- * ------------------------------------------------- */
+ 
 export const addInfoLinksZ = z
   .object({
     x: urlWithLengthZ,
     instagram: urlWithLengthZ,
     telegram: urlWithLengthZ,
-    email: emailWithLengthZ,
-
-    // ✅ STRICT website validation
+    email: emailWithLengthZ, 
     website: websiteExternalLinkZ,
   })
   .default({});
@@ -204,10 +189,7 @@ export const addLinksModalZ = addInfoLinksZ.superRefine((v, ctx) => {
 });
 export type AddLinksModalValues = z.infer<typeof addLinksModalZ>;
 
-/* -------------------------------------------------
- * Flat Add-Links modal schema (no nested paths – avoids zodFieldMeta)
- * Backend: email max 320, url max 2048. Strict validation + normalization.
- * ------------------------------------------------- */
+ 
 const twitterLinkModalZ = z.preprocess(
   emptyToNull,
   z
@@ -284,13 +266,8 @@ const targetGeoZ = z
   })
   .optional();
 
-/* -------------------------------------------------
- * Campaign Add-Info form (simplified: single city, 3 images, 1 video)
- * ------------------------------------------------- */
-/** Add-info: image slot is string (data URL or http) or null only — no File; component validates file (JPG/PNG/WEBP/GIF, 100KB–20MB) before setValue. */
-const campaignAddInfoImageSlotZ = z.union([imageStringZ, z.null()]);
-
-/** Add-info form + API shape: IDs only. countries/states/cities are string[] (no populated objects). */
+ const campaignAddInfoImageSlotZ = z.union([imageStringZ, z.null()]);
+ 
 const campaignAddInfoTargetGeoZ = z
   .object({
     countries: z.array(z.string().trim()).default([]),
@@ -299,14 +276,12 @@ const campaignAddInfoTargetGeoZ = z
   })
   .default({ countries: [], states: [], cities: [] });
 
-/** Add-info: uploadedVideoLinks is array of 0 or 1 (single MP4 slot). Element: blob/data URL or http URL or null. */
-const campaignAddInfoUploadedVideoLinksZ = z
+ const campaignAddInfoUploadedVideoLinksZ = z
   .array(z.union([videoStringZ, z.null()]))
   .max(1)
   .default([]);
 
-/** Base object schema for add-info (use with handleSubmitNormalized); validation is in campaignAddInfoZ. Field names match API: imageLinks, uploadedVideoLinks, videoLink. */
-export const campaignAddInfoBaseZ = z.object({
+ export const campaignAddInfoBaseZ = z.object({
   description: z.string().min(3, "Min 3 characters").max(350, "Max 350 characters"),
   targetGeo: campaignAddInfoTargetGeoZ,
   links: addInfoLinksZ.optional().default({}),
@@ -319,7 +294,6 @@ export const campaignAddInfoBaseZ = z.object({
     .default([null, null, null]),
   uploadedVideoLinks: campaignAddInfoUploadedVideoLinksZ,
   videoLink: z.string().optional().default(""),
-  /** Max 3 industry IDs; sent as linkedIndustries in PUT. Display names kept in UI state. */
   linkedIndustries: z.array(z.string()).max(3).optional().default([]),
 });
 
@@ -430,8 +404,7 @@ export const trailRewardZ = z.object({
   rewardAmountCap: z.number().min(0, "Invalid cap"),
   rewardType: rewardTypeZ,
 });
-
-/** Poll resource asset: image | youtube | video. Value: URL string, data URL, or File. */
+ 
 const pollAssetValueZ =
   typeof File !== "undefined"
     ? z.union([z.string().min(1), z.instanceof(File)])
@@ -481,8 +454,7 @@ export const trailPollZ = z.object({
       `Max ${TRAIL_CONSTRAINTS.optionsMax} options are allowed`,
     ),
 });
-
-/** Trial (trail) allows exactly one resource asset: image OR youtube OR video (no co-exist). */
+ 
 export const trailCreateZ = z
   .object({
     trailName: z
